@@ -1,17 +1,15 @@
 import locale
-import logging
 import re
 import tabula
+import os
 import pandas as pd
 
-
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')  # number style: commas for thousands
-nameonly_pattern = re.compile("^[A-Za-z\-\s/']+$")  # names have -, / and space and ' in them
-nannum_pattern = re.compile("-(\d+)")  # '-' followed by digits
-nanend_pattern = re.compile("-$")  # '-' at the end
+nameonly_pattern = re.compile("^[A-Za-z\-\s/']+\d?$")  # names may contain -, /,',space and digit at the end
+regionname_pattern = re.compile("^[A-Z\-\s/']+\d?$")  # region names all caps
+zero_pattern = re.compile("(-+)([^A-Za-z]|$)")   # '-' by (not in a name) represents 0
 namenum_pattern = re.compile("([A-Za-z\-/']+)(\d+)")  # name followed by number
 numnum_pattern = re.compile("(\d{3})([^,])")  # three digits not followed by comma
-logger = logging.getLogger()
 
 
 def parse_row(row, num_cols=10):
@@ -34,17 +32,16 @@ def parse_row(row, num_cols=10):
         s = namenum_pattern.sub("\g<1>\t\g<2>", val)
         # separate number columns that are stuck together
         s = numnum_pattern.sub("\g<1>\t\g<2>", s)
-        s = nannum_pattern.sub("\t0\t\g<1>", s)
-        s = nanend_pattern.sub("\t0", s)
+        s = zero_pattern.sub(
+            lambda match: ''.join(['\t0\t']*len(match.group(1))+[match.group(2)]), s)
         s = re.sub('\t+','\t', s).strip()
         for sn in s.split('\t'):
             try:
                 outrow.append(locale.atoi(sn))
             except ValueError as e:
-                if re.match(nameonly_pattern, sn):
-                    outrow.append(sn)
-                else:
+                if not re.match(nameonly_pattern, sn):
                     raise e
+                outrow.append(sn)
     assert len(outrow) <= num_cols, "Too many values: {}->{}".format(list(row), outrow)
     if len(outrow) < num_cols and len(outrow)>1:
         outrow += ['']*(num_cols-len(outrow))
@@ -61,24 +58,24 @@ def parse_file(fname):
 
 
 def is_break(r):
-    if re.match('^[A-Z\s]+$', r[0]):
+    if re.match(regionname_pattern, str(r[0])):
         return True
     return False
 
 
-def process_file(fname):
+def process_file(fpath):
     # parse_file breaks tables on page breaks and doesn't recognize
     # the real breaks.  So we merge all the tables across pages into
     # one find the real breaks and separate tables.
-    df = pd.concat([t for t in parse_file(fname)])
+    df = pd.concat([t for t in parse_file(fpath)])
     df['break'] = df.apply(is_break, axis=1)
-    rows = []
-    tables = {'': []}
+    table_name = os.path.basename(fpath)
+    tables = {table_name: []}
     for i, row in df.iterrows():
         if row['break'] == True:
-            rows = tables.setdefault(row[0], [])
-        else:
-            rows.append(row)
+            table_name = row[0]
+            tables[table_name] = []
+        tables[table_name].append(row)
     for name, rows in tables.items():
         tables[name] = pd.DataFrame(rows)
         if not tables[name].empty:
