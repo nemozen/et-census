@@ -1,7 +1,8 @@
 import locale
+import os
+import sys
 import re
 import tabula
-import os
 import pandas as pd
 
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')  # number style: commas for thousands
@@ -66,20 +67,32 @@ def is_break(r):
 def process_file(fpath):
     # parse_file breaks tables on page breaks and doesn't recognize
     # the real breaks.  So we merge all the tables across pages into
-    # one find the real breaks and separate tables.
+    # one and find the real breaks.
+    base_name = os.path.splitext(os.path.basename(fpath))[0]
     df = pd.concat([t for t in parse_file(fpath)])
     df['break'] = df.apply(is_break, axis=1)
-    table_name = os.path.basename(fpath)
+    table_name = base_name
     tables = {table_name: []}
     for i, row in df.iterrows():
         if row['break'] == True:
             table_name = row[0]
             tables[table_name] = []
+            continue
+        if row[0] in set(r[0] for r in tables[table_name]):
+            base_name += '?'
+            table_name = base_name
+            tables[table_name] = []
         tables[table_name].append(row)
+    
     for name, rows in tables.items():
-        tables[name] = pd.DataFrame(rows)
-        if not tables[name].empty:
-            tables[name].drop(columns=['break'], inplace=True)
-            tables[name].set_index(0, inplace=True)
+        t = pd.DataFrame(rows)
+        if not t.empty:
+            t.drop(columns=['break'], inplace=True)
+            t.set_index(0, inplace=True)
+        yield name, t
 
-    return tables
+
+if __name__ == "__main__":
+    for name,table in process_file(sys.argv[1]):
+        print(name)
+        print(table)
