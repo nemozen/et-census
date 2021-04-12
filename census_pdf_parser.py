@@ -1,3 +1,5 @@
+#  Custom parser for tables in PDF files, built on Tabula.
+#  Copyright (c) 2021 Nemo Semret
 import locale
 import os
 import sys
@@ -65,9 +67,10 @@ def is_break(r):
 
 
 def process_file(fpath):
-    # parse_file breaks tables on page breaks and doesn't recognize
-    # the real breaks.  So we merge all the tables across pages into
-    # one and find the real breaks.
+    """Generate the real tables in the file. parse_file breaks tables on
+    page breaks, this wrapper finds the real breaks and reslices the
+    data into a dataframe per real table.
+    """
     base_name = os.path.splitext(os.path.basename(fpath))[0]
     df = pd.concat([t for t in parse_file(fpath)])
     df['break'] = df.apply(is_break, axis=1)

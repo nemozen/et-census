@@ -1,4 +1,5 @@
 import os
+from shapely.geometry import shape
 from groclient import GroClient
 
 
@@ -20,6 +21,14 @@ def init_region_mapping(tables):
     return region_mapping
 
 
+def get_geometry(region_id):
+    geom = client.get_geojson(region_id)
+    if not geom:
+        return None
+    return shape(geom['geometries'][0])
+    
+    
+# region_mapping initialized as above and manually edited.
 region_mapping = {
     'Addis_Ababa_Statistical-table_3.1': 10918,
     'AKAKI KALITI SUB CITY': None,
@@ -126,3 +135,5 @@ region_mapping = {
     'Tigray_Statistical-table_3.1?????': 115018,
     'Tigray_Statistical-table_3.1??????': 142824, # 115016, # 1000143,  # MEKELE SPECIAL ZONE
 }
+
+
