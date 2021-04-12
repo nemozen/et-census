@@ -76,14 +76,14 @@ def process_file(fpath):
     for i, row in df.iterrows():
         if row['break'] == True:
             table_name = row[0]
-            tables[table_name] = []
+            tables.setdefault(table_name, [])
             continue
         if row[0] in set(r[0] for r in tables[table_name]):
             base_name += '?'
             table_name = base_name
             tables[table_name] = []
         tables[table_name].append(row)
-    
+
     for name, rows in tables.items():
         t = pd.DataFrame(rows)
         if not t.empty:
