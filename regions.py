@@ -5,11 +5,11 @@ from groclient import GroClient
 
 COUNTRY_ID=1065
 REGION_LEVEL=5
-client = GroClient('api.gro-intelligence.com', os.environ['GROAPI_TOKEN'])
-gro_regions = [r['id'] for r in client.get_descendant_regions(COUNTRY_ID, REGION_LEVEL)]
 
 
 def init_region_mapping(tables):
+    client = GroClient('api.gro-intelligence.com', os.environ['GROAPI_TOKEN'])
+    gro_regions = [r['id'] for r in client.get_descendant_regions(COUNTRY_ID, REGION_LEVEL)]
     region_mapping = {}
     for region in filter(lambda x: x, tables.keys()):
         for r in client.search('regions', region):
@@ -22,6 +22,7 @@ def init_region_mapping(tables):
 
 
 def get_geometry(region_id):
+    client = GroClient('api.gro-intelligence.com', os.environ['GROAPI_TOKEN'])
     geom = client.get_geojson(region_id)
     if not geom:
         return None
